@@ -1,0 +1,1016 @@
+openapi: 3.0.3
+info:
+  title: PFE E-commerce API
+  description: API documentation.
+  version: 1.0.0
+
+servers:
+  - url: /api
+    description: API Server
+
+paths:
+  /register:
+    post:
+      summary: Register a new client
+      description: Creates a new user in the system with roles including client, vendeur, livreur, or admin.
+      operationId: registerUser
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Client registered successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationSuccessResponse'
+        '422':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "An unexpected error occurred."
+
+  /login:
+    post:
+      summary: Login a user
+      description: Authenticates a user with email and password. Returns a Sanctum token if credentials are valid. Returns 403 if the account is blocked.
+      operationId: loginUser
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginSuccessResponse'
+        '401':
+          description: Invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '403':
+          description: Account blocked by administrator.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+ 
+ 
+  /logout:
+    post:
+      summary: Logout a user
+      description: Revokes the current user token and logs out the user. Requires a valid Bearer token.
+      operationId: logoutUser
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          description: Unauthenticated (token missing or invalid).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  
+
+
+  /profile/verify/send:
+    post:
+      summary: Send verification email
+      description: Sends a verification link to the user email. Requires a valid Bearer token. Returns 400 if email is already verified.
+      operationId: sendVerificationEmail
+      tags:
+        - Email Verification
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Verification link sent successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                status: "success"
+                message: "Lien envoye ! Verifiez votre boite mail"
+        '400':
+          description: Email already verified.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                status: "error"
+                message: "Email deja verifie"
+        '401':
+          description: Unauthenticated (token missing or invalid).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /verify/{id}/{hash}:
+    get:
+      summary: Verify email
+      description: Validates the user email using the signed link received by email.
+      operationId: verifyEmail
+      tags:
+        - Email Verification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The user ID.
+          schema:
+            type: integer
+            example: 1
+        - name: hash
+          in: path
+          required: true
+          description: The SHA1 hash of the user email.
+          schema:
+            type: string
+            example: "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3"
+      responses:
+        '200':
+          description: Email verified successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                status: "success"
+                message: "E-mail valide avec succes !"
+        '400':
+          description: Invalid link or email already verified.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                status: "error"
+                message: "Lien invalide"
+  
+   # ========== PASSWORD RESET ==========
+ 
+  /password/email:
+    post:
+      summary: Demander un lien de réinitialisation
+      description: Envoie un lien de réinitialisation du mot de passe à l'adresse email fournie. Retourne toujours 200 même si l'email n'existe pas (sécurité anti-énumération).
+      operationId: sendResetLink
+      tags:
+        - Password Reset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordEmailRequest'
+            example:
+              email: "jamal@example.com"
+      responses:
+        '200':
+          description: Lien envoyé (ou email inexistant — même réponse pour la sécurité).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                status: "success"
+                message: "Si cet email existe, un lien de réinitialisation a été envoyé."
+        '422':
+          description: Validation error (email manquant ou format invalide).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+ 
+  /password/reset/{token}:
+    get:
+      summary: Valider le token de réinitialisation
+      description: Vérifie que le token reçu par email est valide et non expiré (60 minutes). Retourne l'email et le token si valide.
+      operationId: validateToken
+      tags:
+        - Password Reset
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: Le token de 64 caractères reçu dans le lien email.
+          schema:
+            type: string
+            example: "aB3dEfGhIjKlMnOpQrStUvWxYz1234567890aB3dEfGhIjKlMnOpQrStUvWx"
+        - name: email
+          in: query
+          required: true
+          description: L'adresse email de l'utilisateur.
+          schema:
+            type: string
+            format: email
+            example: "mohamed@example.com"
+      responses:
+        '200':
+          description: Token valide.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateTokenResponse'
+        '400':
+          description: Token invalide, expiré, ou email manquant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                status: "error"
+                message: "Lien invalide ou expiré."
+ 
+  /password/update:
+    post:
+      summary: Mettre à jour le mot de passe
+      description: Met à jour le mot de passe de l'utilisateur après validation du token. Révoque tous les tokens Sanctum existants. Si l'email n'était pas vérifié, il est marqué comme vérifié.
+      operationId: updatePassword
+      tags:
+        - Password Reset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordUpdateRequest'
+            example:
+              email: "jamal@example.com"
+              token: "FIc64WxXBDdnkGPgnF8PzCWqZGvFCPJ1WHzfoLtMWrQ5Cb2qolDfZajGmKTMV5en"
+              password: "NouveauMdp1!"
+              c_password: "NouveauMdp1!"
+      
+      responses:
+        '200':
+          description: Mot de passe mis à jour avec succès.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                status: "success"
+                message: "Mot de passe mis à jour avec succès. Veuillez vous reconnecter."
+        '400':
+          description: Token invalide ou expiré.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                status: "error"
+                message: "Lien invalide ou expiré."
+        '404':
+          description: Utilisateur introuvable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                status: "error"
+                message: "Utilisateur introuvable."
+        '422':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  # ========== CATALOGUE PRODUITS ==========
+
+  /produits:
+    get:
+      summary: Liste des produits
+      description: Retourne la liste paginée des produits actifs. Supporte la recherche, le filtrage et le tri.
+      operationId: getProduits
+      tags:
+        - Catalogue
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Recherche par nom ou description.
+          schema:
+            type: string
+            example: "Miel"
+        - name: categorie_id
+          in: query
+          required: false
+          description: Filtrer par catégorie.
+          schema:
+            type: integer
+            example: 1
+        - name: prix_min
+          in: query
+          required: false
+          description: Prix minimum.
+          schema:
+            type: number
+            example: 50
+        - name: prix_max
+          in: query
+          required: false
+          description: Prix maximum.
+          schema:
+            type: number
+            example: 200
+        - name: sort
+          in: query
+          required: false
+          description: Champ de tri (prix, nom, created_at).
+          schema:
+            type: string
+            enum: [prix, nom, created_at]
+            example: "prix"
+        - name: order
+          in: query
+          required: false
+          description: Ordre de tri.
+          schema:
+            type: string
+            enum: [asc, desc]
+            example: "asc"
+      responses:
+        '200':
+          description: Liste des produits.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProduitsPaginatedResponse'
+
+  /produits/{id}:
+    get:
+      summary: Détail d'un produit
+      description: Retourne les détails d'un produit actif par son ID.
+      operationId: getProduit
+      tags:
+        - Catalogue
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: L'ID du produit.
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Détail du produit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProduitResponse'
+        '404':
+          description: Produit introuvable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                status: "error"
+                message: "Produit introuvable."
+
+  /categories:
+    get:
+      summary: Liste des catégories
+      description: Retourne toutes les catégories avec le nombre de produits actifs.
+      operationId: getCategories
+      tags:
+        - Catalogue
+      responses:
+        '200':
+          description: Liste des catégories.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoriesResponse'
+  
+  # ========== PANIER ==========
+
+  /cart:
+    get:
+      summary: Voir le panier
+      description: Retourne le contenu du panier du client connecté.
+      operationId: getCart
+      tags:
+        - Panier
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Contenu du panier.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          description: Non authentifié.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /cart/add:
+    post:
+      summary: Ajouter un produit au panier
+      description: Ajoute un produit au panier du client connecté.
+      operationId: addToCart
+      tags:
+        - Panier
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddToCartRequest'
+            example:
+              produit_id: 1
+              quantite: 2
+      responses:
+        '200':
+          description: Produit ajouté au panier.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Stock insuffisant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          description: Produit introuvable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /cart/update:
+    patch:
+      summary: Modifier la quantité d'un article
+      description: Met à jour la quantité d'un article dans le panier.
+      operationId: updateCart
+      tags:
+        - Panier
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCartRequest'
+            example:
+              article_id: 1
+              quantite: 3
+      responses:
+        '200':
+          description: Quantité mise à jour.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Stock insuffisant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          description: Article introuvable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /cart/remove/{id}:
+    delete:
+      summary: Supprimer un article du panier
+      description: Supprime un article du panier du client connecté.
+      operationId: removeFromCart
+      tags:
+        - Panier
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: L'ID de l'article dans le panier.
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Article supprimé.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          description: Article introuvable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  # ========== COMMANDES ==========
+
+  /checkout/process:
+    post:
+      summary: Passer une commande
+      description: Valide le panier, crée la commande, génère un reçu PDF et envoie un email de confirmation.
+      operationId: processOrder
+      tags:
+        - Commandes
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Commande passée avec succès.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Panier vide ou stock insuffisant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /orders/history:
+    get:
+      summary: Historique des commandes
+      description: Retourne toutes les commandes du client connecté.
+      operationId: getOrderHistory
+      tags:
+        - Commandes
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Liste des commandes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /orders/{id}/tracking:
+    get:
+      summary: Suivre une commande
+      description: Retourne le statut actuel d'une commande spécifique.
+      operationId: trackOrder
+      tags:
+        - Commandes
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: L'ID de la commande.
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Statut de la commande.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          description: Commande introuvable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /orders/{id}/download-receipt:
+    get:
+      summary: Télécharger le reçu PDF
+      description: Télécharge le reçu PDF d'une commande spécifique.
+      operationId: downloadReceipt
+      tags:
+        - Commandes
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: L'ID de la commande.
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Fichier PDF téléchargé.
+        '404':
+          description: Commande ou reçu introuvable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+components:
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - nom
+        - prenom
+        - email
+        - password
+        - c_password
+      properties:
+        nom:
+          type: string
+          minLength: 3
+          maxLength: 255
+          example: "Assab"
+          description: Must be at least 3 characters. The combination of nom and prenom must be unique.
+        prenom:
+          type: string
+          minLength: 3
+          maxLength: 255
+          example: "Mohamed"
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: "mohamed@example.com"
+          description: Must be a valid email and unique in the users table.
+        password:
+          type: string
+          minLength: 8
+          maxLength: 255
+          format: password
+          description: Must contain at least one letter, one number, one symbol, and mixed case characters.
+        c_password:
+          type: string
+          description: Must match the password field.
+        telephone:
+          type: string
+          nullable: true
+          maxLength: 20
+          pattern: '^(0[0-9]{9}|\+212[0-9]{9}|\+212[0-9]{3}-[0-9]{6})$'
+          example: "+212600112233"
+          description: Spaces are removed before validation.
+    PasswordEmailRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          example: "jamal@example.com"
+
+    PasswordUpdateRequest:
+      type: object
+      required:
+        - email
+        - token
+        - password
+        - c_password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "jamal@example.com"
+        token:
+          type: string
+          example: "FIc64WxXBDdnkGPgnF8PzCWqZGvFCPJ1WHzfoLtMWrQ5Cb2qolDfZajGmKTMV5en"
+        password:
+          type: string
+          format: password
+          example: "NouveauMdp1!"
+        c_password:
+          type: string
+          example: "NouveauMdp1!"
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "mohamed@example.com"
+          description: The registered email address of the user.
+        password:
+          type: string
+          format: password
+          example: "Test@1234"
+          description: The user password.
+   
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        nom:
+          type: string
+        prenom:
+          type: string
+        email:
+          type: string
+        telephone:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [client, vendeur, livreur, admin]
+          default: client
+        est_actif:
+          type: boolean
+          default: true
+        email_verifie_le:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AuthUser:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        nom:
+          type: string
+          example: "Assab"
+        prenom:
+          type: string
+          example: "Mohamed"
+        email:
+          type: string
+          example: "mohamed@example.com"
+        role:
+          type: string
+          enum: [client, vendeur, livreur, admin]
+          example: "client"
+                
+    ValidateTokenResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        message:
+          type: string
+          example: "Token valide. Vous pouvez maintenant choisir un nouveau mot de passe."
+        email:
+          type: string
+          example: "mohamed@example.com"
+        token:
+          type: string
+          example: "aB3dEfGhIjKlMnOpQrStUvWxYz1234567890aB3dEfGhIjKlMnOpQrStUvWx"
+
+    RegistrationSuccessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        message:
+          type: string
+          example: "Client registered successfully"
+        data:
+          $ref: '#/components/schemas/User'
+
+    LoginSuccessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        message:
+          type: string
+          example: "Connexion reussie. Bienvenue Mohamed !"
+        token:
+          type: string
+          example: "2|8cWUq8Le5p9Fl7C4oULKzPvq3mRAqP8SRkJkD9tZa0e58bd5"
+        user:
+          $ref: '#/components/schemas/AuthUser'
+
+    MessageResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "error"
+        message:
+          type: string
+          example: "Email ou mot de passe incorrect"
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "error"
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            nom: ["The combination of this Nom and Prenom already exists."]
+            email: ["The email has already been taken."]
+            password: ["The password field must contain at least one symbol."]
+
+#produits et categories    
+    ProduitsPaginatedResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        data:
+          type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Produit'
+            current_page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 12
+            total:
+              type: integer
+              example: 54
+
+    ProduitResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        data:
+          $ref: '#/components/schemas/Produit'
+
+    Produit:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        nom:
+          type: string
+          example: "Miel de Daghmous"
+        description:
+          type: string
+          nullable: true
+        categorie_id:
+          type: integer
+          example: 1
+        vendeur_id:
+          type: integer
+          example: 1
+        prix:
+          type: number
+          example: 350.00
+        quantite_stock:
+          type: integer
+          example: 50
+        image_url:
+          type: string
+          nullable: true
+        statut:
+          type: string
+          enum: [en_attente, actif, masque]
+          example: "actif"
+        categorie:
+          type: object
+          properties:
+            id:
+              type: integer
+            nom:
+              type: string
+        vendeur:
+          type: object
+          properties:
+            id:
+              type: integer
+            nom:
+              type: string
+            prenom:
+              type: string
+
+    CategoriesResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                example: 1
+              nom:
+                type: string
+                example: "Miel au détail"
+              description:
+                type: string
+                nullable: true
+              produits_count:
+                type: integer
+                example: 7
+#panier
+    AddToCartRequest:
+      type: object
+      required:
+        - produit_id
+        - quantite
+      properties:
+        produit_id:
+          type: integer
+          example: 1
+        quantite:
+          type: integer
+          minimum: 1
+          example: 2
+
+    UpdateCartRequest:
+      type: object
+      required:
+        - article_id
+        - quantite
+      properties:
+        article_id:
+          type: integer
+          example: 1
+        quantite:
+          type: integer
+          minimum: 1
+          example: 3 
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
