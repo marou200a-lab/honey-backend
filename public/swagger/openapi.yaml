@@ -662,6 +662,274 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MessageResponse'
+
+  # ========== ADRESSES ==========
+
+  /profile/addresses:
+    get:
+      summary: Consulter ses adresses
+      description: Retourne toutes les adresses du client connecté. L'adresse par défaut apparaît en premier.
+      operationId: getAddresses
+      tags:
+        - Adresses
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Liste des adresses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          description: Non authentifié.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /profile/addresses/store:
+    post:
+      summary: Ajouter une adresse
+      description: Ajoute une nouvelle adresse pour le client connecté. Si c'est la première adresse, elle est automatiquement mise par défaut.
+      operationId: storeAddress
+      tags:
+        - Adresses
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdresseRequest'
+            example:
+              rue: "123 Rue Mohammed V"
+              ville: "Casablanca"
+              code_postal: "20000"
+              est_par_defaut: true
+      responses:
+        '201':
+          description: Adresse ajoutée avec succès.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /profile/addresses/{id}:
+    put:
+      summary: Modifier une adresse
+      description: Modifie une adresse existante du client connecté.
+      operationId: updateAddress
+      tags:
+        - Adresses
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: L'ID de l'adresse.
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdresseRequest'
+            example:
+              rue: "456 Avenue Hassan II"
+              ville: "Rabat"
+              code_postal: "10000"
+              est_par_defaut: false
+      responses:
+        '200':
+          description: Adresse mise à jour.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          description: Adresse introuvable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Supprimer une adresse
+      description: Supprime une adresse du client connecté. Si c'était l'adresse par défaut, la suivante devient automatiquement par défaut.
+      operationId: deleteAddress
+      tags:
+        - Adresses
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: L'ID de l'adresse.
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Adresse supprimée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          description: Adresse introuvable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  
+
+  # ========== AVIS ==========
+
+  /product/{id}/review:
+    get:
+      summary: Voir les avis d'un produit
+      description: Retourne tous les avis d'un produit avec la moyenne des notes. Public — pas besoin d'authentification.
+      operationId: getAvis
+      tags:
+        - Avis
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: L'ID du produit.
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Liste des avis avec moyenne.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          description: Produit introuvable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /product/{id}/review/form:
+    get:
+      summary: Vérifier si le client peut laisser un avis
+      description: Vérifie que le client a acheté le produit et n'a pas encore laissé d'avis. Retourne le produit et l'avis existant si présent.
+      operationId: getAvisForm
+      tags:
+        - Avis
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: L'ID du produit.
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Formulaire d'avis disponible.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '403':
+          description: Client n'a pas acheté ce produit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                status: "error"
+                message: "Vous devez acheter ce produit pour laisser un avis."
+        '404':
+          description: Produit introuvable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /product/{id}/review/store:
+    post:
+      summary: Soumettre un avis
+      description: Soumet un avis et une note pour un produit acheté. Le client ne peut laisser qu'un seul avis par produit.
+      operationId: storeAvis
+      tags:
+        - Avis
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: L'ID du produit.
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AvisRequest'
+            example:
+              note: 5
+              commentaire: "Excellent produit, je recommande !"
+      responses:
+        '201':
+          description: Avis publié avec succès.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                status: "success"
+                message: "Merci ! Votre avis a été publié."
+        '400':
+          description: Avis déjà soumis pour ce produit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                status: "error"
+                message: "Vous avez déjà laissé un avis pour ce produit."
+        '403':
+          description: Client n'a pas acheté ce produit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
     RegisterRequest:
@@ -1009,8 +1277,49 @@ components:
           type: integer
           minimum: 1
           example: 3 
+
+     #Adresses
+    AdresseRequest:
+      type: object
+      required:
+        - rue
+        - ville
+        - code_postal
+      properties:
+        rue:
+          type: string
+          example: "123 Rue Mohammed V"
+        ville:
+          type: string
+          example: "Casablanca"
+        code_postal:
+          type: string
+          example: "20000"
+        est_par_defaut:
+          type: boolean
+          example: true 
+    
+    #AVIS
+    AvisRequest:
+      type: object
+      required:
+        - note
+      properties:
+        note:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 5
+        commentaire:
+          type: string
+          maxLength: 500
+          nullable: true
+          example: "Excellent produit, je recommande !"
+
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+
+   

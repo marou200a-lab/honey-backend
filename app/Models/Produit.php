@@ -29,4 +29,9 @@ class Produit extends Model
     {
         return $this->belongsTo(User::class, 'vendeur_id');
     }
+    
+    public function avis()
+{
+    return $this->hasMany(Avis::class, 'produit_id');
+}
 }

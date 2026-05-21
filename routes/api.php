@@ -7,7 +7,8 @@ use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\ProduitController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\OrderController;
-
+use App\Http\Controllers\AdresseController;
+use App\Http\Controllers\AvisController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
@@ -24,6 +25,9 @@ Route::get('/categories',          [ProduitController::class, 'categories']);
 Route::get('/verify/{id}/{hash}', [ProfileController::class, 'verifyEmail'])
     ->name('verification.verify');
 
+// Avis — public (voir les avis d'un produit)
+Route::get('/product/{id}/review', [AvisController::class, 'index']);
+
 // Routes protégées (token + compte actif)
 Route::middleware(['auth:sanctum', 'active'])->group(function () {
    Route::post('/logout', [AuthController::class, 'logout']);
@@ -38,5 +42,14 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::get('/orders/history',                [OrderController::class, 'history']);
     Route::get('/orders/{id}/tracking',          [OrderController::class, 'tracking']);
     Route::get('/orders/{id}/download-receipt',  [OrderController::class, 'downloadReceipt']);
+    
+    // Adresses
+    Route::get('/profile/addresses',        [AdresseController::class, 'index']);
+    Route::post('/profile/addresses/store', [AdresseController::class, 'store']);
+    Route::put('/profile/addresses/{id}',   [AdresseController::class, 'update']);
+    Route::delete('/profile/addresses/{id}',[AdresseController::class, 'destroy']);
    
-   });
+    // Avis — protégé (soumettre un avis)
+    Route::get('/product/{id}/review/form',   [AvisController::class, 'show']);
+    Route::post('/product/{id}/review/store', [AvisController::class, 'store']);
+    });

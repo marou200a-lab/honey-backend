@@ -53,7 +53,7 @@ class PasswordResetController extends Controller
         ]);
 
         // Construire le lien
-        $resetLink = url("/api/password/reset/{$token}?email=" . urlencode($request->email));
+        $resetLink = "http://localhost:3000/reset-password/{$token}?email=" . urlencode($request->email);
 
         // Envoyer l'email (dans les logs en dev)
         Mail::raw(

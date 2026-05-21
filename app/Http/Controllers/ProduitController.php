@@ -44,7 +44,7 @@ class ProduitController extends Controller
         $sortOrder = $request->order === 'asc' ? 'asc' : 'desc';
         $query->orderBy($sortField, $sortOrder);
 
-        $produits = $query->paginate(12);
+        $produits = $query->withAvg('avis', 'note')->paginate(12);
 
         return response()->json([
             'status' => 'success',
