@@ -76,7 +76,7 @@
     <div class="header">
         <h1>Khayrate Bladi</h1>
         <p>Produits du Terroir Marocain</p>
-        <p>Email : contact@khayrate-bladi.ma | Tél : +212 600 000 000</p>
+        <p>Email : khayratebladi568@gmail.com | Tél : +212 781 036 015</p>
     </div>
 
     <div class="section">

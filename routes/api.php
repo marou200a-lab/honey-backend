@@ -9,6 +9,11 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\AdresseController;
 use App\Http\Controllers\AvisController;
+use App\Http\Controllers\DeliveryController;
+use App\Http\Controllers\SellerProductController;
+use App\Http\Controllers\SellerOrderController;
+use App\Http\Controllers\SellerStatsController;
+use App\Http\Controllers\AdminController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
@@ -17,10 +22,16 @@ Route::post('/password/email',         [PasswordResetController::class, 'sendRes
 Route::get('/password/reset/{token}',  [PasswordResetController::class, 'validateToken']);
 Route::post('/password/update',        [PasswordResetController::class, 'updatePassword']);
 
+Route::get('/home', [ProduitController::class, 'home']);
 // Catalogue produits (public)
+Route::get('/produits/suggestions', [ProduitController::class, 'suggestions']);
 Route::get('/produits',            [ProduitController::class, 'index']);
 Route::get('/produits/{id}',       [ProduitController::class, 'show']);
 Route::get('/categories',          [ProduitController::class, 'categories']);
+
+
+
+
 // Verification email
 Route::get('/verify/{id}/{hash}', [ProfileController::class, 'verifyEmail'])
     ->name('verification.verify');
@@ -52,4 +63,46 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // Avis — protégé (soumettre un avis)
     Route::get('/product/{id}/review/form',   [AvisController::class, 'show']);
     Route::post('/product/{id}/review/store', [AvisController::class, 'store']);
+    
+    // Livreur
+    Route::get('/deliveries/assigned',          [DeliveryController::class, 'assigned']);
+    Route::patch('/deliveries/{id}/status',     [DeliveryController::class, 'updateStatus']);
+    Route::post('/deliveries/{id}/confirm',     [DeliveryController::class, 'confirm']);
+    Route::get('/deliveries/history',           [DeliveryController::class, 'history']);
+    
+    Route::get('/profile',        [ProfileController::class, 'getProfile']);
+    Route::post('/profile/update', [ProfileController::class, 'updateProfile']);
+    
+
+    // Vendeur — Produits
+    Route::get('/seller/products',          [SellerProductController::class, 'index']);
+    Route::post('/seller/products/store',   [SellerProductController::class, 'store']);
+    Route::get('/seller/products/{id}',     [SellerProductController::class, 'show']);
+    Route::put('/seller/products/{id}',     [SellerProductController::class, 'update']);
+    Route::delete('/seller/products/{id}',  [SellerProductController::class, 'destroy']);
+
+    // Vendeur — Commandes
+    Route::get('/seller/orders',                      [SellerOrderController::class, 'index']);
+    Route::get('/seller/orders/{id}',                 [SellerOrderController::class, 'show']);
+    Route::post('/seller/orders/{id}/update-status',  [SellerOrderController::class, 'updateStatus']);
+
+    // Vendeur — Statistiques
+    Route::get('/seller/statistics',              [SellerStatsController::class, 'index']);
+    Route::get('/seller/statistics/download-pdf', [SellerStatsController::class, 'downloadPdf']);
+
+    // Admin — Utilisateurs
+    Route::get('/admin/users',                       [AdminController::class, 'getUsers']);
+    Route::patch('/admin/users/{id}/toggle-active',  [AdminController::class, 'toggleActive']);
+ 
+    // Admin — Catalogue
+    Route::get('/admin/catalogue',                        [AdminController::class, 'getCatalogue']);
+    Route::patch('/admin/catalogue/{id}/statut',          [AdminController::class, 'updateStatutProduit']);
+ 
+    // Admin — Commandes
+    Route::get('/admin/commandes',                              [AdminController::class, 'getCommandes']);
+    Route::post('/admin/commandes/{id}/assigner-livreur',       [AdminController::class, 'assignLivreur']);
+ 
+    // Admin — Statistiques globales
+    Route::get('/admin/stats',  [AdminController::class, 'getStats']);
+ 
     });

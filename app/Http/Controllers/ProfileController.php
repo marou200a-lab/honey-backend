@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
+
 class ProfileController extends Controller
 {
     // ========== ENVOYER LIEN VERIFICATION ==========
@@ -81,6 +83,46 @@ class ProfileController extends Controller
         return response()->json([
             'status'  => 'success',
             'message' => 'E-mail valide avec succes !'
+        ]);
+    }
+    
+     // ========== RÉCUPÉRER LE PROFIL ==========
+
+    public function getProfile(Request $request)
+    {
+        return response()->json([
+            'status' => 'success',
+            'data'   => $request->user()
+        ]);
+    }
+
+  // ========== METTRE À JOUR LE PROFIL ==========
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $validator = Validator::make($request->all(), [
+            'nom'       => 'sometimes|string|min:3|max:255',
+            'prenom'    => 'sometimes|string|min:3|max:255',
+            'telephone' => [
+                'nullable', 'string', 'max:20',
+                'regex:/^(0[0-9]{9}|\+212[0-9]{9}|\+212[0-9]{3}-[0-9]{6})$/'
+            ],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user->update($request->only(['nom', 'prenom', 'telephone']));
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Profil mis à jour avec succès.',
+            'data'    => $user
         ]);
     }
 }

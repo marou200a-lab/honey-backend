@@ -84,4 +84,72 @@ class ProduitController extends Controller
             'data'   => $categories,
         ]);
     }
+
+    // ========== SUGGESTIONS DE RECHERCHE ==========
+   public function suggestions(Request $request)
+{
+    if (!$request->has('search') || strlen($request->search) < 1) {
+        return response()->json([
+            'status' => 'success',
+            'data'   => []
+        ]);
+    }
+
+    $search = $request->search;
+
+    $suggestions = Produit::where('statut', 'actif')
+        ->where('nom', 'LIKE', '%' . $search . '%')
+        ->select('id', 'nom', 'prix', 'image_url')
+        ->orderByRaw(
+            'CASE WHEN nom LIKE ? THEN 1 WHEN nom LIKE ? THEN 2 ELSE 3 END, nom ASC',
+            [$search . '%', '%' . $search . '%']
+        )
+        ->get();
+
+    if ($suggestions->isEmpty()) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'Aucun produit trouvé pour "' . $search . '".'
+        ], 404);
+    }
+
+    return response()->json([
+        'status' => 'success',
+        'data'   => $suggestions
+    ]);
+}
+
+    // ========== PAGE D'ACCUEIL ==========
+public function home()
+{
+    // Catégories avec nombre de produits
+    $categories = Categorie::withCount([
+        'produits' => fn($q) => $q->where('statut', 'actif')
+    ])->get();
+
+    // 8 derniers produits ajoutés
+    $produits_vedettes = Produit::with(['categorie', 'vendeur:id,nom,prenom'])
+        ->where('statut', 'actif')
+        ->withAvg('avis', 'note')
+        ->orderBy('created_at', 'desc')
+        ->limit(8)
+        ->get();
+
+    // 8 produits les mieux notés
+    $produits_populaires = Produit::with(['categorie', 'vendeur:id,nom,prenom'])
+        ->where('statut', 'actif')
+        ->withAvg('avis', 'note')
+        ->orderByDesc('avis_avg_note')
+        ->limit(8)
+        ->get();
+
+    return response()->json([
+        'status' => 'success',
+        'data'   => [
+            'categories'          => $categories,
+            'produits_vedettes'   => $produits_vedettes,
+            'produits_populaires' => $produits_populaires,
+        ]
+    ]);
+} 
 }

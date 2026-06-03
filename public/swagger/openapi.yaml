@@ -424,7 +424,101 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CategoriesResponse'
+
   
+  /home:
+    get:
+      summary: Données de la page d'accueil
+      description: Retourne en une seule requête les catégories, les 8 derniers produits ajoutés et les 8 produits les mieux notés.
+      operationId: getHome
+      tags:
+        - Catalogue
+      responses:
+        '200':
+          description: Données de la page d'accueil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      categories:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            nom:
+                              type: string
+                              example: "Miel au détail"
+                            description:
+                              type: string
+                              nullable: true
+                            produits_count:
+                              type: integer
+                              example: 7
+                      produits_vedettes:
+                        type: array
+                        description: Les 8 derniers produits ajoutés.
+                        items:
+                          $ref: '#/components/schemas/Produit'
+                      produits_populaires:
+                        type: array
+                        description: Les 8 produits les mieux notés.
+                        items:
+                          $ref: '#/components/schemas/Produit'
+
+  #SUGGESTIONS
+  /produits/suggestions:
+    get:
+      summary: Suggestions de recherche
+      description: Retourne jusqu'à 5 produits correspondant au mot-clé saisi. Minimum 2 caractères requis.
+      operationId: getSuggestions
+      tags:
+        - Catalogue
+      parameters:
+        - name: search
+          in: query
+          required: true
+          description: Mot-clé de recherche (minimum 2 caractères).
+          schema:
+            type: string
+            example: "ro"
+      responses:
+        '200':
+          description: Liste des suggestions.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 22
+                        nom:
+                          type: string
+                          example: "Huile de Romarin"
+                        prix:
+                          type: number
+                          example: 32.00
+                        image_url:
+                          type: string
+                          example: "https://i.ibb.co/xxx/image.jpg"
   # ========== PANIER ==========
 
   /cart:
@@ -929,7 +1023,1071 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  
+  # ========== LIVREUR ==========
 
+  /deliveries/assigned:
+    get:
+      summary: Voir les livraisons assignées
+      description: Retourne les livraisons assignées au livreur connecté avec statut assignee, recuperee ou en_cours.
+      operationId: getAssigned
+      tags:
+        - Livreur
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Liste des livraisons assignées.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          description: Non authentifié.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /deliveries/{id}/status:
+    patch:
+      summary: Mettre à jour le statut de livraison
+      description: Met à jour le statut d'une livraison — recuperee, en_cours ou non_livree.
+      operationId: updateDeliveryStatus
+      tags:
+        - Livreur
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: L'ID de la livraison.
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDeliveryStatusRequest'
+            example:
+              statut: "en_cours"
+      responses:
+        '200':
+          description: Statut mis à jour.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          description: Livraison introuvable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /deliveries/{id}/confirm:
+    post:
+      summary: Confirmer la livraison au client
+      description: Marque la livraison comme livrée et met à jour la commande associée.
+      operationId: confirmDelivery
+      tags:
+        - Livreur
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: L'ID de la livraison.
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Livraison confirmée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                status: "success"
+                message: "Livraison confirmée avec succès."
+        '404':
+          description: Livraison introuvable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /deliveries/history:
+    get:
+      summary: Historique des tournées
+      description: Retourne l'historique des livraisons effectuées par le livreur connecté. Filtrable par période.
+      operationId: getDeliveryHistory
+      tags:
+        - Livreur
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          required: false
+          description: Période de filtrage.
+          schema:
+            type: string
+            enum: [today, week, month, last_month]
+            example: "month"
+      responses:
+        '200':
+          description: Historique des livraisons.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      livraisons:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MessageResponse'
+                      total:
+                        type: integer
+                        example: 15
+  
+  # ========== VENDEUR — PRODUITS ==========
+
+  /seller/products:
+    get:
+      summary: Consulter ses produits
+      description: Retourne tous les produits du vendeur connecté.
+      operationId: getSellerProducts
+      tags:
+        - Vendeur
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Liste des produits du vendeur.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /seller/products/store:
+    post:
+      summary: Ajouter un produit
+      description: Ajoute un nouveau produit. Statut en_attente jusqu'à validation par l'administrateur.
+      operationId: storeSellerProduct
+      tags:
+        - Vendeur
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SellerProductRequest'
+            example:
+              nom: "Miel de Thym"
+              description: "Miel de thym pur du Rif"
+              categorie_id: 1
+              prix: 120.00
+              quantite_stock: 30
+              image_url: "https://i.ibb.co/xxx/miel.jpg"
+      responses:
+        '201':
+          description: Produit ajouté avec succès.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /seller/products/{id}:
+    get:
+      summary: Consulter un produit
+      description: Retourne les détails d'un produit du vendeur.
+      operationId: getSellerProduct
+      tags:
+        - Vendeur
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Détail du produit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          description: Produit introuvable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+    put:
+      summary: Modifier un produit
+      description: Modifie un produit existant du vendeur.
+      operationId: updateSellerProduct
+      tags:
+        - Vendeur
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SellerProductRequest'
+            example:
+              nom: "Miel de Thym Premium"
+              prix: 150.00
+              quantite_stock: 25
+      responses:
+        '200':
+          description: Produit mis à jour.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          description: Produit introuvable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+    delete:
+      summary: Supprimer un produit
+      description: Supprime un produit du catalogue du vendeur.
+      operationId: deleteSellerProduct
+      tags:
+        - Vendeur
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Produit supprimé.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          description: Produit introuvable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  # ========== VENDEUR — COMMANDES ==========
+
+  /seller/orders:
+    get:
+      summary: Consulter les commandes reçues
+      description: Retourne toutes les commandes contenant des produits du vendeur connecté.
+      operationId: getSellerOrders
+      tags:
+        - Vendeur
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Liste des commandes reçues.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /seller/orders/{id}:
+    get:
+      summary: Détail d'une commande
+      description: Retourne les détails complets d'une commande spécifique.
+      operationId: getSellerOrder
+      tags:
+        - Vendeur
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Détail de la commande.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          description: Commande introuvable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /seller/orders/{id}/update-status:
+    post:
+      summary: Mettre à jour le statut d'une commande
+      description: Change le statut d'une commande — en_attente, en_preparation, expediee ou annulee.
+      operationId: updateSellerOrderStatus
+      tags:
+        - Vendeur
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrderStatusRequest'
+            example:
+              statut: "en_preparation"
+      responses:
+        '200':
+          description: Statut mis à jour.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          description: Commande introuvable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ========== VENDEUR — STATISTIQUES ==========
+
+  /seller/statistics:
+    get:
+      summary: Statistiques de vente
+      description: Retourne les statistiques complètes du vendeur — total ventes, commandes, top produits, ventes par mois.
+      operationId: getSellerStatistics
+      tags:
+        - Vendeur
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Statistiques du vendeur.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      total_ventes:
+                        type: number
+                        example: 15000.00
+                      nombre_commandes:
+                        type: integer
+                        example: 45
+                      nombre_produits:
+                        type: integer
+                        example: 10
+                      top_produits:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MessageResponse'
+                      ventes_par_mois:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MessageResponse'
+
+  /seller/statistics/download-pdf:
+    get:
+      summary: Télécharger statistiques PDF
+      description: Génère et télécharge un rapport PDF des statistiques de vente du vendeur.
+      operationId: downloadSellerStatsPdf
+      tags:
+        - Vendeur
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Fichier PDF téléchargé.
+  
+  /admin/commandes/{id}/assigner-livreur:
+    post:
+      summary: Assigner un livreur à une commande
+      description: Permet à l'admin d'assigner un livreur à une commande existante. Crée une entrée dans la table livraisons et passe le statut de la commande à "en_preparation".
+      operationId: assignerLivreur
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: L'ID de la commande.
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - livreur_id
+              properties:
+                livreur_id:
+                  type: integer
+                  example: 5
+            example:
+              livreur_id: 5
+      responses:
+        '200':
+          description: Livreur assigné avec succès.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Livreur assigné avec succès"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      commande_id:
+                        type: integer
+                        example: 1
+                      livreur_id:
+                        type: integer
+                        example: 5
+                      statut_suivi:
+                        type: string
+                        example: "assignee"
+                      disponibilite:
+                        type: boolean
+                        example: true
+                      created_at:
+                        type: string
+                        format: date-time
+                      updated_at:
+                        type: string
+                        format: date-time
+        '404':
+          description: Commande ou livreur introuvable.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Commande introuvable"
+        '409':
+          description: Un livreur est déjà assigné à cette commande.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Cette commande possède déjà une livraison"
+        '422':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  errors:
+                    type: object
+                    example:
+                      livreur_id: ["The livreur id field is required."]
+        '401':
+          description: Non authentifié.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Unauthenticated."
+        '403':
+          description: Accès refusé (non admin).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Accès refusé."
+
+  # ========== ADMIN ==========
+
+  /admin/stats:
+    get:
+      summary: Statistiques globales
+      description: Retourne le CA total, commandes par statut, users par rôle, produits par statut, ventes par mois (12 derniers mois), top 5 produits, et liste des livreurs disponibles.
+      operationId: getAdminStats
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Statistiques globales.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      chiffre_affaires:
+                        type: number
+                        example: 45800.00
+                      total_commandes:
+                        type: integer
+                        example: 120
+                      commandes_par_statut:
+                        type: object
+                        example:
+                          en_attente: { statut: "en_attente", total: 10 }
+                          livree: { statut: "livree", total: 85 }
+                      users_par_role:
+                        type: object
+                        example:
+                          client: { role: "client", total: 95 }
+                          vendeur: { role: "vendeur", total: 8 }
+                          livreur: { role: "livreur", total: 5 }
+                      produits_par_statut:
+                        type: object
+                        example:
+                          actif: { statut: "actif", total: 48 }
+                          en_attente: { statut: "en_attente", total: 6 }
+                      ventes_par_mois:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            mois:
+                              type: string
+                              example: "2025-04"
+                            total:
+                              type: number
+                              example: 5200.00
+                            nb_commandes:
+                              type: integer
+                              example: 14
+                      top_produits:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 3
+                            nom:
+                              type: string
+                              example: "Miel de Jujubier"
+                            image_url:
+                              type: string
+                              nullable: true
+                            total_vendu:
+                              type: integer
+                              example: 210
+                            chiffre_affaires:
+                              type: number
+                              example: 73500.00
+                      livreurs_disponibles:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 7
+                            nom:
+                              type: string
+                              example: "Alami"
+                            prenom:
+                              type: string
+                              example: "Youssef"
+                            email:
+                              type: string
+                              example: "livreur@example.com"
+                            telephone:
+                              type: string
+                              nullable: true
+        '401':
+          description: Non authentifié.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /admin/users:
+    get:
+      summary: Liste des utilisateurs
+      description: Retourne la liste paginée (15/page) de tous les utilisateurs. Filtrable par rôle et par recherche (nom, prénom, email).
+      operationId: getAdminUsers
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: role
+          in: query
+          required: false
+          description: Filtrer par rôle.
+          schema:
+            type: string
+            enum: [client, vendeur, livreur, admin]
+            example: "vendeur"
+        - name: search
+          in: query
+          required: false
+          description: Recherche par nom, prénom ou email.
+          schema:
+            type: string
+            example: "Mohamed"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Liste paginée des utilisateurs.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+                      current_page:
+                        type: integer
+                        example: 1
+                      per_page:
+                        type: integer
+                        example: 15
+                      total:
+                        type: integer
+                        example: 108
+        '401':
+          description: Non authentifié.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /admin/users/{id}/toggle-active:
+    patch:
+      summary: Activer / Désactiver un compte
+      description: Bascule le champ est_actif de l'utilisateur. Si désactivé, tous ses tokens Sanctum sont révoqués. Impossible de modifier un compte admin.
+      operationId: toggleUserActive
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: L'ID de l'utilisateur.
+          schema:
+            type: integer
+            example: 12
+      responses:
+        '200':
+          description: Statut du compte mis à jour.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Compte désactivé"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 12
+                      est_actif:
+                        type: boolean
+                        example: false
+        '403':
+          description: Impossible de modifier un compte administrateur.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                status: "error"
+                message: "Impossible de modifier un compte administrateur"
+        '404':
+          description: Utilisateur introuvable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                status: "error"
+                message: "Utilisateur introuvable"
+        '401':
+          description: Non authentifié.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /admin/catalogue:
+    get:
+      summary: Catalogue complet (admin)
+      description: Retourne tous les produits (tous statuts) paginés (15/page). Filtrable par statut et par recherche sur le nom.
+      operationId: getAdminCatalogue
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: statut
+          in: query
+          required: false
+          description: Filtrer par statut du produit.
+          schema:
+            type: string
+            enum: [en_attente, actif, masque]
+            example: "en_attente"
+        - name: search
+          in: query
+          required: false
+          description: Recherche par nom de produit.
+          schema:
+            type: string
+            example: "miel"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Liste paginée des produits.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Produit'
+                      current_page:
+                        type: integer
+                        example: 1
+                      per_page:
+                        type: integer
+                        example: 15
+                      total:
+                        type: integer
+                        example: 54
+        '401':
+          description: Non authentifié.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /admin/catalogue/{id}/statut:
+    patch:
+      summary: Changer le statut d'un produit
+      description: Permet à l'admin de valider (actif), masquer (masque) ou remettre en attente (en_attente) un produit.
+      operationId: updateAdminProduitStatut
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: L'ID du produit.
+          schema:
+            type: integer
+            example: 5
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - statut
+              properties:
+                statut:
+                  type: string
+                  enum: [en_attente, actif, masque]
+                  example: "actif"
+            example:
+              statut: "actif"
+      responses:
+        '200':
+          description: Statut du produit mis à jour.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Statut du produit mis à jour"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 5
+                      nom:
+                        type: string
+                        example: "Miel de Thym"
+                      statut:
+                        type: string
+                        example: "actif"
+        '404':
+          description: Produit introuvable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                status: "error"
+                message: "Produit introuvable"
+        '422':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Non authentifié.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /admin/commandes:
+    get:
+      summary: Toutes les commandes (admin)
+      description: Retourne toutes les commandes paginées (15/page) avec le client et le livreur assigné. Filtrable par statut et par recherche sur le client.
+      operationId: getAdminCommandes
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: statut
+          in: query
+          required: false
+          description: Filtrer par statut de commande.
+          schema:
+            type: string
+            enum: [en_attente, en_preparation, expediee, livree, annulee]
+            example: "en_attente"
+        - name: search
+          in: query
+          required: false
+          description: Recherche par nom, prénom ou email du client.
+          schema:
+            type: string
+            example: "Jamal"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Liste paginée des commandes.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 14
+                            user:
+                              type: object
+                              properties:
+                                id:
+                                  type: integer
+                                nom:
+                                  type: string
+                                prenom:
+                                  type: string
+                                email:
+                                  type: string
+                            prix_total:
+                              type: number
+                              example: 450.00
+                            statut:
+                              type: string
+                              example: "en_attente"
+                            livraison:
+                              type: object
+                              nullable: true
+                              properties:
+                                statut_suivi:
+                                  type: string
+                                  example: "assignee"
+                                livreur:
+                                  type: object
+                                  nullable: true
+                                  properties:
+                                    id:
+                                      type: integer
+                                    nom:
+                                      type: string
+                                    prenom:
+                                      type: string
+                            created_at:
+                              type: string
+                              format: date-time
+                      current_page:
+                        type: integer
+                        example: 1
+                      per_page:
+                        type: integer
+                        example: 15
+                      total:
+                        type: integer
+                        example: 120
+        '401':
+          description: Non authentifié.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
 components:
   schemas:
     RegisterRequest:
@@ -1315,11 +2473,61 @@ components:
           maxLength: 500
           nullable: true
           example: "Excellent produit, je recommande !"
+    
 
+    UpdateDeliveryStatusRequest:
+      type: object
+      required:
+        - statut
+      properties:
+        statut:
+          type: string
+          enum: [recuperee, en_cours, non_livree]
+          example: "en_cours"
+
+    SellerProductRequest:
+      type: object
+      required:
+        - nom
+        - categorie_id
+        - prix
+        - quantite_stock
+      properties:
+        nom:
+          type: string
+          example: "Miel de Thym"
+        description:
+          type: string
+          nullable: true
+          example: "Miel de thym pur du Rif"
+        categorie_id:
+          type: integer
+          example: 1
+        prix:
+          type: number
+          example: 120.00
+        quantite_stock:
+          type: integer
+          example: 30
+        image_url:
+          type: string
+          nullable: true
+          example: "https://i.ibb.co/xxx/miel.jpg"
+
+    UpdateOrderStatusRequest:
+      type: object
+      required:
+        - statut
+      properties:
+        statut:
+          type: string
+          enum: [en_attente, en_preparation, expediee, annulee]
+          example: "en_preparation"
+                
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-
+    
    
